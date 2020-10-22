@@ -23,11 +23,12 @@ public:
 
 	/// Gets the nth range of host addresses and writes the start of the range into <code>start</code> and the end of the range into <code>end</code>
 	void NthRangeOf(uint64 n, IPAddress addr, IPAddress& startIP, IPAddress& endIP);
+	static int GetPower(uint64 numSubnets);
+	static SubnetMask FromCIDR(NetworkClass netClass, uchar CIDR);
 
 private:
 	static uint64* GetValidNumSubnets();
 	/// Returns positive integer n, where the argument is 2^n, or -1 otherwise
-	static int GetPower(uint64 numSubnets);
 };
 
 #endif // SUBNETMASK_H

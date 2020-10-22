@@ -13,6 +13,7 @@ public:
 	IPAddress();
 
 	static IPAddress ExampleFor(NetworkClass netClass);
+	FurtherNetworkClass GetFurtherNetClass() const;
 	std::string ToString() const;
 	NetworkClass GetNetClass() const { return m_NetClass; }
 	void SetBytes(uchar b3, uchar b2, uchar b1, uchar b0);

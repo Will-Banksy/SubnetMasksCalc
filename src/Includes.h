@@ -20,4 +20,14 @@ enum InputMode {
 	CIDR_NUM
 };
 
+enum FurtherNetworkClass {
+	CLASS_A_PUBLIC,
+	CLASS_A_PRIVATE,
+	CLASS_B_PUBLIC,
+	CLASS_B_PRIVATE,
+	CLASS_C_PUBLIC,
+	CLASS_C_PRIVATE,
+	CLASS_OTHER
+};
+
 #endif // INCLUDES_H

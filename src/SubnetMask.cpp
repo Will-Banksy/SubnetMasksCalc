@@ -149,3 +149,59 @@ void SubnetMask::NthRangeOf(uint64 n, IPAddress addr, IPAddress& startIP, IPAddr
 		}
 	}
 }
+
+SubnetMask SubnetMask::FromCIDR(NetworkClass netClass, uchar CIDR) {
+	if(CIDR > 32 || CIDR < 8) {
+		throw std::out_of_range("CIDR out of range");
+	}
+
+	uchar numSuffixBits = 8 * (4 - (1 + netClass));
+
+	uint64 power = 32 - CIDR;
+	SubnetMask mask(netClass);
+	mask.m_NumSubnets = pow(2, numSuffixBits - power);
+
+	uchar numPrefixBits = 32 - numSuffixBits;
+	CIDR -= numPrefixBits;
+	switch(netClass) {
+		case CLASS_A: {
+			std::bitset<24> bits;
+			for(int i = 23; i >= 0; i--) {
+				bits.set(i);
+				CIDR--;
+				if(CIDR == 0) {
+					break;
+				}
+			}
+			mask.SetBytes(mask.GetB3(), (uchar)(bits.to_ulong() >> 16), (uchar)(bits.to_ulong() >> 8), (uchar)bits.to_ulong());
+			break;
+		}
+
+		case CLASS_B: {
+			std::bitset<16> bits;
+			for(int i = 15; i >= 0; i--) {
+				bits.set(i);
+				CIDR--;
+				if(CIDR == 0) {
+					break;
+				}
+			}
+			mask.SetBytes(mask.GetB3(), mask.GetB2(), (uchar)(bits.to_ulong() >> 8), (uchar)bits.to_ulong());
+			break;
+		}
+
+		case CLASS_C: {
+			std::bitset<8> bits;
+			for(int i = 7; i >= 0; i--) {
+				bits.set(i);
+				CIDR--;
+				if(CIDR == 0) {
+					break;
+				}
+			}
+			mask.SetBytes(mask.GetB3(), mask.GetB2(), mask.GetB1(), (uchar)bits.to_ulong());
+			break;
+		}
+	}
+	return mask;
+}

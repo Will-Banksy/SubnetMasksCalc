@@ -48,3 +48,37 @@ void IPAddress::SetBytes(uchar b3, uchar b2, uchar b1, uchar b0) {
 	m_b1 = b1;
 	m_b0 = b0;
 }
+
+FurtherNetworkClass IPAddress::GetFurtherNetClass() const {
+	if(m_b3 > 0 && m_b3 < 127) {
+		// Class A
+		if(m_b3 == 10) {
+			return CLASS_A_PRIVATE;
+		} else {
+			return CLASS_A_PUBLIC;
+		}
+	} else if(m_b3 > 127 && m_b3 < 192) {
+		// Class B
+		if((m_b3 > 127 && m_b3 < 172) || (m_b3 > 172 && m_b3 < 192)) {
+			return CLASS_B_PUBLIC;
+		} else { // Implied if(m_b3 == 172)
+			if(m_b2 > 15 && m_b2 < 32) {
+				return CLASS_B_PRIVATE;
+			}
+			return CLASS_B_PUBLIC;
+		}
+	} else if(m_b3 > 191 && m_b3 < 224) {
+		// Class C
+		if(m_b3 == 192) {
+			if(m_b2 == 168) {
+				return CLASS_C_PRIVATE;
+			} else {
+				return CLASS_C_PUBLIC;
+			}
+		} else {
+			return CLASS_C_PUBLIC;
+		}
+	} else {
+		return CLASS_OTHER;
+	}
+}

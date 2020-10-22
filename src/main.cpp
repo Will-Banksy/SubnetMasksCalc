@@ -1,6 +1,7 @@
 #include <iostream>
 #include "Utils.h"
 #include <cmath>
+#include <bitset>
 
 #define CHECK_EXIT(x) if(x == "exit") exit(0)
 
@@ -47,6 +48,19 @@ int main() {
 			uchar b0 = toUChar(std::stoi(tokens.at(3)));
 			address = new IPAddress(b3, b2, b1, b0);
 			netClass = address->GetNetClass();
+
+			std::cout << "Network Class: ";
+			switch(address->GetFurtherNetClass()) {
+				case CLASS_A_PUBLIC: std::cout << "Class A (Public)"; break;
+				case CLASS_A_PRIVATE: std::cout << "Class A (Private)"; break;
+				case CLASS_B_PUBLIC: std::cout << "Class B (Public)"; break;
+				case CLASS_B_PRIVATE: std::cout << "Class B (Private)"; break;
+				case CLASS_C_PUBLIC: std::cout << "Class C (Public)"; break;
+				case CLASS_C_PRIVATE: std::cout << "Class C (Private)"; break;
+				case CLASS_OTHER: std::cout << "Other"; break;
+			}
+			std::cout << std::endl;
+
 			return true;
 		} catch(std::invalid_argument except) { return false; }
 		catch(std::out_of_range except) { return false; }
@@ -84,11 +98,55 @@ int main() {
 	SubnetMask mask(netClass);
 	uchar CIDR = 0;
 
-	// TODO: Make sure that the number of possible subnets and the number of possible hosts (usable and non-usable) are both always displayed
-
+	// Each case takes care of assigning the correct values to BOTH of numSubnets & CIDR - Each also needs to split mask
+	// Each case also prints the number of subnets and number of hosts
 	switch(mode) {
 		case SUBNET_MASK: {
-			// TODO
+			Utils::GetInput("Enter a subnet mask: ", [&mask, &CIDR, &numSubnets](std::string str) {
+				CHECK_EXIT(str);
+
+				std::vector<std::string> tokens = Utils::split(str, '.');
+				if(tokens.size() != 4) {
+					return false;
+				}
+
+				try {
+					auto toUChar = [](int i) {
+						if(i < 0) throw std::out_of_range("Out of range");
+							else if(i > 255) throw std::out_of_range("Out of range");
+							else return (uchar)i;
+					};
+					uchar b3 = toUChar(std::stoi(tokens.at(0)));
+					uchar b2 = toUChar(std::stoi(tokens.at(1)));
+					uchar b1 = toUChar(std::stoi(tokens.at(2)));
+					uchar b0 = toUChar(std::stoi(tokens.at(3)));
+
+					uint32 maskBytes = uint32(b3 << 24) | uint32(b2 << 16) | uint32(b1 << 8) | uint32(b0);
+					std::bitset<32> bits(maskBytes);
+					uchar counter = 0;
+					for(int i = 31; i >= 0; i--) {
+						if(!bits.test(i)) {
+							CIDR = counter;
+							break;
+						}
+						counter++;
+					}
+
+					mask = SubnetMask::FromCIDR(mask.GetNetClass(), CIDR);
+
+					uchar numSuffixBits = 8 * (4 - (1 + mask.GetNetClass()));
+					uint64 power = 32 - CIDR;
+
+					std::cout << "Number of Hosts: " << (uint64)pow(2, power) << std::endl;
+					numSubnets = pow(2, numSuffixBits - power);
+					std::cout << "Number of Subnets: " << numSubnets << std::endl;
+
+					return true;
+				} catch(std::invalid_argument except) { return false; }
+				catch(std::out_of_range except) { return false; }
+
+				return false;
+			});
 			break;
 		}
 
@@ -98,15 +156,18 @@ int main() {
 
 				try {
 					uint64 val = Utils::ParseUint(str);
-					// TODO: Round to next power of 2
 					for(int i = 0; i < 25; i++) {
 						if(SubnetMask::s_ValidNumSubnets[i] >= val) {
 							val = SubnetMask::s_ValidNumSubnets[i];
 							break;
 						}
 					}
-					std::cout << "Number of Subnets: " << val << std::endl;
 					uchar suffixBits = 8 * (4 - (1 + mask.GetNetClass()));
+					int power = SubnetMask::GetPower(val);
+					uint64 numHosts = pow(2, suffixBits - power); // Calculate number of hosts
+
+					std::cout << "Number of Hosts: " << numHosts << std::endl;
+					std::cout << "Number of Subnets: " << val << std::endl;
 					if(val > pow(2, suffixBits)) {
 						throw std::invalid_argument("Too many subnets!");
 					}
@@ -121,12 +182,58 @@ int main() {
 		}
 
 		case NUM_HOSTS: {
-			// TODO
+			Utils::GetInput("Enter the number of hosts you want: ", [&numSubnets, &mask, &CIDR](std::string str) {
+				CHECK_EXIT(str);
+
+				try {
+					uint64 val = Utils::ParseUint(str);
+					val += 2; // To account for the 2 unusable addresses
+					for(int i = 0; i < 25; i++) {
+						if(SubnetMask::s_ValidNumSubnets[i] >= val) {
+							val = SubnetMask::s_ValidNumSubnets[i];
+							break;
+						}
+					}
+					std::cout << "Number of Hosts: " << val << std::endl;
+					uchar suffixBits = 8 * (4 - (1 + mask.GetNetClass()));
+					int power = SubnetMask::GetPower(val);
+					val = pow(2, suffixBits - power); // Calculate the number of subnets
+
+					std::cout << "Number of Subnets: " << val << std::endl;
+					if(val > pow(2, suffixBits)) {
+						throw std::invalid_argument("Too many subnets!");
+					}
+					numSubnets = val;
+					CIDR = mask.Split(numSubnets);
+					return true;
+				} catch(std::invalid_argument except) {}
+				catch(std::out_of_range except) {}
+				return false;
+			});
 			break;
 		}
 
 		case CIDR_NUM: {
-			// TODO
+			Utils::GetInput("Enter CIDR Number: ", [&CIDR, &mask, &numSubnets](std::string str) {
+				CHECK_EXIT(str);
+
+				try {
+					uint64 val = Utils::ParseUint(str);
+					CIDR = val;
+
+					mask = SubnetMask::FromCIDR(mask.GetNetClass(), CIDR);
+
+					uchar numSuffixBits = 8 * (4 - (1 + mask.GetNetClass()));
+					uint64 power = 32 - CIDR;
+
+					std::cout << "Number of Hosts: " << (uint64)pow(2, power) << std::endl;
+					numSubnets = pow(2, numSuffixBits - power);
+					std::cout << "Number of Subnets: " << numSubnets << std::endl;
+					return true;
+				} catch(std::invalid_argument except) {}
+				catch(std::out_of_range except) {}
+				return false;
+			});
 			break;
 		}
 	}
@@ -139,7 +246,7 @@ int main() {
 	std::string ipaddress = address->ToString();
 
 	std::cout << "Subnet Mask: " << mask.ToString() << std::endl;
-	std::cout << "IP Address: " << ipaddress << "/" << (ushort)CIDR << std::endl;
+	std::cout << "CIDR Notation: " << ipaddress << "/" << (ushort)CIDR << std::endl;
 
 	IPAddress start;
 	IPAddress end;
@@ -152,10 +259,40 @@ int main() {
 	mask.NthRangeOf(numSubnets - 1, *address, start, end);
 	std::string lastRange = start.ToString() + " - " + end.ToString();
 
-	std::cout << "First Range: " << firstRange << std::endl;
+	std::cout << "\nFirst Range: " << firstRange << std::endl;
 	std::cout << "Second Range: " << secondRange << std::endl;
 	std::cout << "Second Last Range: " << secondLastRange << std::endl;
-	std::cout << "Second Last Range: " << lastRange << std::endl;
+	std::cout << "Last Range: " << lastRange << '\n' << std::endl;
+
+	Utils::GetInput("Enter 'n1:n2', where n1 is the first range to display and n2 is the last (Leave blank to skip): ", [&mask, &start, &end, &address, &numSubnets](std::string str) {
+		if(str == "") {
+			return true;
+		}
+		auto min = [](uint64 val1, uint64 val2) {
+			if(val1 > val2) return val2;
+					else return val1;
+		};
+
+		std::vector<std::string> tokens = Utils::split(str, ':');
+		if(tokens.size() != 2) {
+			return false;
+		}
+
+		try {
+			uint64 startRange = Utils::ParseUint(tokens.at(0));
+			uint64 endRange = Utils::ParseUint(tokens.at(1));
+
+			std::cout << "Ranges " << startRange << " - " << endRange << " [" << std::endl;
+			for(uint64 i = startRange; i < min(endRange, numSubnets - 1); i++) {
+				mask.NthRangeOf(i, *address, start, end);
+				std::cout << start.ToString() << " - " << end.ToString() << '\n';
+			}
+			std::cout << "]" << std::endl;
+		} catch(std::invalid_argument except) {}
+		catch(std::out_of_range except) {}
+
+		return false;
+	});
 
 	std::cout << "\nPress Enter to exit...";
 	std::cin.get();
