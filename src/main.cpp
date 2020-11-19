@@ -283,7 +283,7 @@ int main() {
 			uint64 endRange = Utils::ParseUint(tokens.at(1));
 
 			std::cout << "Ranges " << startRange << " - " << endRange << " [" << std::endl;
-			for(uint64 i = startRange; i < min(endRange, numSubnets - 1); i++) {
+			for(uint64 i = startRange; i < min(endRange, numSubnets - 1) + 1; i++) {
 				mask.NthRangeOf(i, *address, start, end);
 				std::cout << start.ToString() << " - " << end.ToString() << '\n';
 			}
